@@ -1,5 +1,6 @@
 import log4js from 'log4js';
 import path from 'path';
+import config from '../config';
 
 log4js.configure({
   appenders: {
@@ -8,7 +9,7 @@ log4js.configure({
     },
     app: {
       type: 'file',
-      filename: path.join(__dirname, '../../log/logger'),
+      filename: path.join(__dirname, `../../log/${config.log.file}`),
     },
   },
   categories: {
