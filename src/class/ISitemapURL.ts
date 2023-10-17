@@ -1,4 +1,4 @@
-export interface ISitemap {
+export interface ISitemapURL {
   loc: URL
   lastmod: Date
   changefreq?: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never'

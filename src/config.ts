@@ -7,8 +7,10 @@ export default {
     port: process.env.SERVER_PORT || 3150,
   },
   source: {
-    url: process.env.API_COUNT || 'https://sgn74.ru/api/bridge/card/all/count',
-    staticURL: process.env.STATIC_URL_LIST || '../staticURL',
+    base: 'https://sgn74.ru',
+    apiURL: process.env.API_PAGES || 'https://sgn74.ru/api/bridge/card',
+    psevdoPath: '/products',
+    staticURL: process.env.STATIC_URL_LIST || '../../static.url',
     syncDelay: process.env.SYNC_MSTIME || 1000 * 60 * 60,
   },
   jwt: {
