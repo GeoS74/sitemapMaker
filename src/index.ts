@@ -8,8 +8,7 @@ import { _errorToJSON, _isNodeError } from './libs/errors';
 import { _isSitemapXML } from './libs/url.validator';
 import { SitemapMaker } from './class/SitemapMaker';
 
-const sitemapMaker: SitemapMaker = new SitemapMaker();
-sitemapMaker.run();
+SitemapMaker.run();
 
 const server: Server<typeof IncomingMessage, typeof ServerResponse> = createServer();
 

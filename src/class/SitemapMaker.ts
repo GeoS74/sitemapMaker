@@ -6,24 +6,44 @@ import { logger } from '../libs/logger';
 import { ISitemapURL } from './ISitemapURL';
 
 export class SitemapMaker {
-  private lastmod: Date = new Date();
+  private static lastmod: Date = new Date();
 
-  private dir: string = path.join(__dirname, '../../sitemap');
+  private static dir: string = path.join(__dirname, '../../sitemap');
 
-  private siteMaps: ISitemapURL[] = [];
+  private static sitemapURL: ISitemapURL[] = [];
+
+  private static sitemapFilesName: string[] = [];
 
   constructor() {
-    try { readdirSync(this.dir); } catch (error) { mkdirSync(this.dir); }
+    try { readdirSync(SitemapMaker.dir); } catch (error) { mkdirSync(SitemapMaker.dir); }
   }
 
-  
+  private static async createDir() {
+    try { readdirSync(SitemapMaker.dir); } catch (error) { mkdirSync(SitemapMaker.dir); }
+  }
 
-  public async run() {
-    this.lastmod = new Date();
-    const foo = (await this.readStaticURL()).map(e => {
-      
-    });
-    console.log(foo)
+  public static async run() {
+    await SitemapMaker.createDir();
+    SitemapMaker.lastmod = new Date();
+
+    // чтение статичного файла с адресами страниц
+    await SitemapMaker.readStaticURL()
+      .then(SitemapMaker.mapperURL)
+      .then(SitemapMaker.addURL);
+
+    // чтение api товаров
+    // ...
+
+    // запись оставшихся адресов
+    if (SitemapMaker.sitemapURL.length) {
+      SitemapMaker.makeSitemapFile([...SitemapMaker.sitemapURL]);
+      SitemapMaker.sitemapURL.length = 0;
+      SitemapMaker.sitemapFilesName.length = 0;
+    }
+
+    // формирование файла индекса
+    // ...
+
     // this.makeSitemapFile(await this.readStaticURL())
 
     // let offset = 0;
@@ -40,20 +60,27 @@ export class SitemapMaker {
     //   }
     //   break;
     // }
-     
   }
 
-  private async makeSitemapFile(paths: ISitemapURL[]) {
-    const fname = this.getNextFileName();
-    await writeFile(fname, '<?xml version="1.0" encoding="UTF-8"?>', {flag: 'w'});
-    await writeFile(fname, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">', {flag: 'a'});
+  private static async makeSitemapFile(sitemapURLSs: ISitemapURL[]) {
+    const fname = SitemapMaker.getFileName();
 
-    paths.map(async p => {
-      await writeFile(fname, '</urlset>', {flag: 'a'});
-    })
+    await writeFile(fname, `<?xml version="1.0" encoding="UTF-8"?>\n`, { flag: 'w' });
+    await writeFile(fname, `<urlset xmlns="http://www.sitemapURL.org/schemas/sitemap/0.9">`, { flag: 'a' });
 
-    await writeFile(fname, '</urlset>', {flag: 'a'});
-    return fname;
+    sitemapURLSs.map(async (u) => {
+      await writeFile(fname, `
+      <url>
+        <loc>${u.loc.toString()}</loc>
+        <lastmod>${u.lastmod.toISOString()}</lastmod>
+        <changefreq>${u.changefreq}</changefreq>
+        <priority>${u.priority}</priority>
+      </url>
+      `, { flag: 'a' });
+    });
+
+    await writeFile(fname, '</urlset>', { flag: 'a' });
+    SitemapMaker.sitemapFilesName.push(fname);
   }
 
   private getValidURL(loc: string) {
@@ -64,32 +91,41 @@ export class SitemapMaker {
 
   }
 
-  private getNextFileName() {
-    return `${this.dir}/sitemap${this.siteMaps.length}.xml`;
+  private static getFileName() {
+    return `${SitemapMaker.dir}/sitemap${SitemapMaker.sitemapFilesName.length}.xml`;
   }
 
   private static async readURL(offset: number, limit: number) {
-    console.log(`${config.source.apiURL}?offset=${offset}&limit=${limit}`);
-    return fetch(`${config.source.apiURL}?offset=${offset}&limit=${limit}`)
-    .then(async res => {
-      if(res.ok) {
-        const arr = await res.json();
-        if(Array.isArray(arr) && arr.length) {
-          return arr;
+    return fetch(`${config.maker.apiURL}?offset=${offset}&limit=${limit}`)
+      .then(async (res) => {
+        if (res.ok) {
+          const arr = await res.json();
+          if (Array.isArray(arr) && arr.length) {
+            return arr;
+          }
         }
-      }
-      throw new Error();
-    })
-    .then(arr => arr.map(e =>SitemapMaker.makeURL(`${config.source.psevdoPath}/${e.alias}`)))
-    .catch((error) => null);
+        throw new Error();
+      })
+      .then((arr) => arr.map((e) => SitemapMaker.makeURL(`${config.maker.psevdoPath}/${e.alias}`)))
+      .catch((error) => null);
   }
-   
 
-  private async readStaticURL() {
-    return readFile(path.join(__dirname, config.source.staticURL))
-      .then((res) => new Set(res.toString().split('\n').map((line) => SitemapMaker.makeURL(line))))
-      .then(res => Array.from(res))
-      .then(res => this.makeSitemapURLs(res))
+  private static async addURL(urls: ISitemapURL[]) {
+    SitemapMaker.sitemapURL = SitemapMaker.sitemapURL.concat(urls);
+
+    if (SitemapMaker.sitemapURL.length > config.maker.maxURLsForSitemap) {
+      SitemapMaker.makeSitemapFile(SitemapMaker.sitemapURL.slice(0, config.maker.maxURLsForSitemap));
+      SitemapMaker.sitemapURL = SitemapMaker.sitemapURL.slice(config.maker.maxURLsForSitemap);
+    }
+  }
+
+  private static async readStaticURL() {
+    return readFile(path.join(__dirname, config.maker.staticURL))
+      // в Set добавляются URL в строковом виде для исключения дубликатов
+      // если в файле со статичными адресами страниц есть пустые строки
+      // метод makeURL() вернёт базовый адрес сайта, так появляются дубликаты
+      .then((res) => new Set(res.toString().split('\n').map((line) => SitemapMaker.makeURL(line).toString())))
+      .then((res) => Array.from(res))
       .catch((error) => {
         if (error instanceof Error) {
           logger.error(error.message);
@@ -98,16 +134,16 @@ export class SitemapMaker {
       });
   }
 
-  private makeSitemapURLs(urls: URL[]): ISitemapURL[] {
-    return urls.map(url => ({
-      loc: url,
-      lastmod: this.lastmod,
+  private static mapperURL(urls: string[]): ISitemapURL[] {
+    return urls.map((url) => ({
+      loc: new URL(url),
+      lastmod: SitemapMaker.lastmod,
       changefreq: 'weekly',
-      priority: 0.8
-    }))
+      priority: 0.8,
+    }));
   }
 
   private static makeURL(path: string): URL {
-    return new URL(path, config.source.base);
+    return new URL(path, config.maker.base);
   }
 }
