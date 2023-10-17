@@ -20,7 +20,9 @@ export class SitemapMaker {
 
   public async run() {
     this.lastmod = new Date();
-    const foo = await this.readStaticURL();
+    const foo = (await this.readStaticURL()).map(e => {
+      
+    });
     console.log(foo)
     // this.makeSitemapFile(await this.readStaticURL())
 
