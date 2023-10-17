@@ -41,4 +41,6 @@ server.on('request', (req: IncomingMessage, res: ServerResponse<IncomingMessage>
   }
 });
 
-server.listen(config.server.port, (): void => logger.info(`server run at ${config.server.port} port`));
+server.listen(config.server.port, (): void => {
+  logger.info(`server run at ${config.server.port} port`)
+});

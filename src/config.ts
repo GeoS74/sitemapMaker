@@ -11,7 +11,7 @@ export default {
     apiURL: process.env.API_PAGES || 'https://sgn74.ru/api/bridge/card',
     staticURL: process.env.STATIC_URL_LIST || '../../static.url',
     psevdoPath: '/products',
-    maxURLsForSitemap: 30000,
+    maxURLsForSitemap: 10000,
     syncDelay: process.env.SYNC_MSTIME || 1000 * 60 * 60,
   },
   // jwt: {
