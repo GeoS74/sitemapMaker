@@ -7,9 +7,10 @@ import { ISitemapURL } from './ISitemapURL';
 
 export class SitemapMaker {
   private static lastmod: Date = new Date();
+
   private static dir: string = path.join(__dirname, '../../sitemap');
 
-  // массив имён файлов sitemap, если не пустой, то файл индекса ещё не создан 
+  // массив имён файлов sitemap, если не пустой, то файл индекса ещё не создан
   private static sitemapFilesName: string[] = [];
 
   // счётчик записанных урл-ов, если больше 0, то какой-то файл пишется
@@ -27,22 +28,22 @@ export class SitemapMaker {
     await SitemapMaker.readURL();
     logger.info('все страницы опрошены');
 
-    if(SitemapMaker.countWriteURL > 0) {
+    if (SitemapMaker.countWriteURL > 0) {
       await SitemapMaker.closeFile();
     }
 
     // формирование файла индекса
-    // ...
+    await SitemapMaker.makeSitemapIndexFile();
   }
 
   private static async readURL() {
     try {
-      let offset = 104000;
+      let offset = 0;
       const limit = 150;
 
       while (true) {
         logger.info(`offset: ${offset} memory: ${process.memoryUsage().heapUsed}`);
-        
+
         const arr = [];
         let i = 0;
         for (i = 0; i < 10; i += 1) {
@@ -59,9 +60,48 @@ export class SitemapMaker {
             return res;
           })
           .then(SitemapMaker.mapperSitemapURL)
-          .then(SitemapMaker.writeURL)
+          .then(SitemapMaker.writeURL);
       }
     } catch (error) { /* do nothing */ }
+  }
+
+  private static async readStaticURL(): Promise<void | never[]> {
+    return readFile(path.join(__dirname, config.maker.staticURL))
+      // в Set добавляются URL в строковом виде для исключения дубликатов
+      // если в файле со статичными адресами страниц есть пустые строки
+      // метод makeURL() вернёт базовый адрес сайта, так появляются дубликаты
+      .then((res) => new Set(res.toString().split('\n').map((line) => SitemapMaker.makeURL(line).toString())))
+      .then((res) => Array.from(res))
+      .then(SitemapMaker.mapperSitemapURL)
+      .then(SitemapMaker.writeURL)
+      .catch((error) => {
+        if (error instanceof Error) {
+          logger.error(error.message);
+        }
+        return [];
+      });
+  }
+
+  private static async makeSitemapIndexFile() {
+    if (!SitemapMaker.sitemapFilesName.length) {
+      return;
+    }
+
+    const fname = 'sitemap.xml';
+    await writeFile(fname, `<?xml version="1.0" encoding="UTF-8"?>
+      <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    `, { flag: 'w' });
+
+    SitemapMaker.sitemapFilesName.map(async (e) => {
+      await writeFile(fname, `
+      <loc>${e}</loc>
+      <lastmod>${SitemapMaker.lastmod}</lastmod>
+      `, { flag: 'a' });
+    });
+
+    await writeFile(fname, '</sitemapindex>', { flag: 'a' });
+
+    SitemapMaker.sitemapFilesName.length = 0;
   }
 
   private static async openFile() {
@@ -73,16 +113,16 @@ export class SitemapMaker {
 
   private static async closeFile() {
     const fname = SitemapMaker.getFileName();
-    await writeFile(fname, `</urlset>`, { flag: 'a' });
+    await writeFile(fname, '</urlset>', { flag: 'a' });
     SitemapMaker.sitemapFilesName.push(fname);
     SitemapMaker.countWriteURL = 0;
   }
 
   private static async writeURL(urls: ISitemapURL[]) {
-    let buff: string[] = [];
+    const buff: string[] = [];
 
-    for(let u of urls) {
-      if(SitemapMaker.countWriteURL === 0) {
+    for (const u of urls) {
+      if (SitemapMaker.countWriteURL === 0) {
         await SitemapMaker.openFile();
       }
 
@@ -90,18 +130,18 @@ export class SitemapMaker {
 
       buff.push(SitemapMaker.sitemapURLToString(u));
 
-      if(buff.length > 500) {
-        await writeFile(SitemapMaker.getFileName(), buff.join(''), { flag: 'a' })
+      if (buff.length > 500) {
+        await writeFile(SitemapMaker.getFileName(), buff.join(''), { flag: 'a' });
         buff.length = 0;
       }
 
-      if(SitemapMaker.countWriteURL > 30000) {
+      if (SitemapMaker.countWriteURL > 30000) {
         await SitemapMaker.closeFile();
       }
     }
 
-    if(buff.length) {
-      if(SitemapMaker.countWriteURL === 0) {
+    if (buff.length) {
+      if (SitemapMaker.countWriteURL === 0) {
         await SitemapMaker.openFile();
       }
 
@@ -141,27 +181,6 @@ export class SitemapMaker {
       });
   }
 
-  private static async readStaticURL(): Promise<void | never[]> {
-    return readFile(path.join(__dirname, config.maker.staticURL))
-      // в Set добавляются URL в строковом виде для исключения дубликатов
-      // если в файле со статичными адресами страниц есть пустые строки
-      // метод makeURL() вернёт базовый адрес сайта, так появляются дубликаты
-      .then((res) => new Set(res.toString().split('\n').map((line) => SitemapMaker.makeURL(line).toString())))
-      .then((res) => Array.from(res))
-      .then(SitemapMaker.mapperSitemapURL)
-      .then(SitemapMaker.writeURL)
-      .catch((error) => {
-        if (error instanceof Error) {
-          logger.error(error.message);
-        }
-        return [];
-      });
-  }
-
-  private makeSitemapIndexFile() {
-
-  }
-
   private static getFileName() {
     return `${SitemapMaker.dir}/sitemap${SitemapMaker.sitemapFilesName.length}.xml`;
   }
@@ -176,14 +195,14 @@ export class SitemapMaker {
   }
 
   private static makeURL(path: string): URL {
-    if(path.length === 1) {
+    if (path.length === 1) {
       path = '';
     }
     return new URL(`${config.maker.pathPrefix}${path}`, config.maker.base);
   }
 
   private static cleanDir() {
-    try { rmSync(SitemapMaker.dir, { recursive: true }); } catch (error) { }
+    try { rmSync(SitemapMaker.dir, { recursive: true }); } catch (error) { /* do nothing */ }
   }
 
   private static createDir() {
