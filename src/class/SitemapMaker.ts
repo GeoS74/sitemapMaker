@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { readdirSync, mkdirSync, rmdirSync } from 'node:fs';
+import { readdirSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'path';
 import config from '../config';
 import { logger } from '../libs/logger';
@@ -20,53 +20,43 @@ export class SitemapMaker {
     SitemapMaker.lastmod = new Date();
 
     // чтение статичного файла с адресами страниц
-    await SitemapMaker.readStaticURL()
-      .then(SitemapMaker.mapperURL)
-      .then(SitemapMaker.addURL);
+    // await SitemapMaker.readStaticURL()
+    //   .then(SitemapMaker.mapperURL)
+    //   .then(SitemapMaker.addURL);
 
     // чтение api товаров
     await SitemapMaker.readURL();
     logger.info('все страницы опрошены');
 
-    // запись оставшихся адресов
-    if (SitemapMaker.sitemapURL.length) {
-      // вызов асинхронного метода makeSitemapFile без await
-      SitemapMaker.makeSitemapFile([...SitemapMaker.sitemapURL]);
-      SitemapMaker.sitemapURL.length = 0;
-      SitemapMaker.sitemapFilesName.length = 0;
+    if(SitemapMaker.countWriteURL > 0) {
+      console.log(`закрываю the end`)
+      await SitemapMaker.closeFile();
+      SitemapMaker.countWriteURL = 0;
     }
+
+    // запись оставшихся адресов
+    // if (SitemapMaker.sitemapURL.length) {
+    //   // вызов асинхронного метода makeSitemapFile без await
+    //   SitemapMaker.makeSitemapFile([...SitemapMaker.sitemapURL]);
+    //   SitemapMaker.sitemapURL.length = 0;
+    //   SitemapMaker.sitemapFilesName.length = 0;
+    // }
 
     // формирование файла индекса
     // ...
-
-    // this.makeSitemapFile(await this.readStaticURL())
-
-    // let offset = 0;
-    // const limit = 150;
-    // let all = 0;
-    // while(true) {
-    //   const bar = await SitemapMaker.readURL(offset, limit);
-    //   if(bar && bar.length) {
-    //     console.log(bar.length);
-    //     all += bar.length;
-    //     console.log(all);
-    //     offset += limit;
-    //     continue;
-    //   }
-    //   break;
-    // }
   }
 
   private static async readURL() {
     try {
       let offset = 0;
-      const limit = 150;
+      const limit = 10;
 
       while (true) {
         logger.info(`offset: ${offset} memory: ${process.memoryUsage().heapUsed}`);
+        
         const arr = [];
         let i = 0;
-        for (i = 0; i < 5; i += 1) {
+        for (i = 0; i < 1; i += 1) {
           arr.push(SitemapMaker.getRequestToAPI(limit * i + offset, limit));
         }
         offset += limit * i;
@@ -80,10 +70,91 @@ export class SitemapMaker {
             return res;
           })
           .then(SitemapMaker.mapperURL)
-          .then(SitemapMaker.addURL);
+          .then(SitemapMaker.writeURL)
+          // .then(res => console.log(res.length))
+          .then(() => {
+            throw new Error()
+          })
       }
     } catch (error) { /* do nothing */ }
   }
+
+
+
+
+
+
+  private static countWriteURL = 0;
+
+  private static async openFile() {
+    const fname = SitemapMaker.getFileName();
+    await writeFile(fname, `<?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemapURL.org/schemas/sitemap/0.9">
+    `, { flag: 'w' });
+  }
+
+  private static async closeFile() {
+    const fname = SitemapMaker.getFileName();
+    await writeFile(fname, `</urlset>`, { flag: 'a' });
+    SitemapMaker.sitemapFilesName.push(fname);
+  }
+
+  private static async writeURL(urls: ISitemapURL[]) {
+    const fname = SitemapMaker.getFileName();
+    let buff: string[] = [];
+
+    for(let u of urls) {
+      if(SitemapMaker.countWriteURL === 0) {
+        console.log(`открытого файла нет, создаю  ${SitemapMaker.getFileName()}`)
+        await SitemapMaker.openFile();
+      }
+
+      SitemapMaker.countWriteURL += 1;
+
+      buff.push(SitemapMaker.urlToString(u));
+
+      if(buff.length > 9) {
+        console.log(`пишу  ${buff.length} строк в   ${SitemapMaker.getFileName()}`)
+        await writeFile(SitemapMaker.getFileName(), buff.join(''), { flag: 'a' })
+        buff.length = 0;
+      }
+
+      if(SitemapMaker.countWriteURL > 9) {
+        console.log(`закрываю ${SitemapMaker.getFileName()}`)
+        await SitemapMaker.closeFile();
+        SitemapMaker.countWriteURL = 0;
+      }
+    }
+
+     
+
+    if(buff.length) {
+      console.log(`есть не записанные строки`)
+
+      if(SitemapMaker.countWriteURL === 0) {
+        console.log(`создаю  ${SitemapMaker.getFileName()}`)
+        await SitemapMaker.openFile();
+      }
+
+      console.log(`пишу  ${buff.length} строк в   ${SitemapMaker.getFileName()}`)
+      await writeFile(SitemapMaker.getFileName(), buff.join(''), { flag: 'a' });
+      buff.length = 0;
+    }
+  }
+
+  private static urlToString(url: ISitemapURL) {
+    return `
+    <url>
+      <loc>${url.loc.toString()}</loc>
+      <lastmod>${url.lastmod.toISOString()}</lastmod>
+      <changefreq>${url.changefreq}</changefreq>
+      <priority>${url.priority}</priority>
+    </url>
+    `;
+  }
+
+
+
 
   private static async getRequestToAPI(offset: number, limit: number): Promise<string[] | never[]> {
     return fetch(`${config.maker.apiURL}?offset=${offset}&limit=${limit}`)
@@ -174,7 +245,7 @@ export class SitemapMaker {
   }
 
   private static cleanDir() {
-    try { rmdirSync(SitemapMaker.dir, { recursive: true }); } catch (error) { }
+    try { rmSync(SitemapMaker.dir, { recursive: true }); } catch (error) { }
   }
 
   private static createDir() {
