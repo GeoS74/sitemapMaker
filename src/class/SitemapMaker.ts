@@ -121,9 +121,6 @@ export class SitemapMaker {
     `;
   }
 
-
-
-
   private static async getRequestToAPI(offset: number, limit: number): Promise<string[] | never[]> {
     return fetch(`${config.maker.apiURL}?offset=${offset}&limit=${limit}`)
       .then(async (res) => {
@@ -133,11 +130,10 @@ export class SitemapMaker {
             return arr;
           }
         }
-        throw new Error();
+        return [];
       })
       .then((arr) => arr.map((e) => SitemapMaker.makeURL(`/${e.alias}`).toString()))
       .catch((error) => {
-        logger.error(`${config.maker.apiURL}?offset=${offset}&limit=${limit}`);
         if (error instanceof Error) {
           logger.error(error.message);
         }
