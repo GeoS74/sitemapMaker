@@ -35,6 +35,7 @@ server.on('request', (req: IncomingMessage, res: ServerResponse<IncomingMessage>
             return;
           }
           res.setHeader('content-type', 'application/xml; charset=utf-8');
+          res.setHeader('content-length', Buffer.byteLength(data, 'utf8'));
           res.statusCode = 200;
           res.end(data.toString());
         });
