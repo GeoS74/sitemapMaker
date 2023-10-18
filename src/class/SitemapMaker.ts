@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { readdirSync, mkdirSync, rmSync } from 'node:fs';
+import { readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
+import { readdirSync, mkdirSync, rmSync, createReadStream, createWriteStream } from 'node:fs';
 import path from 'path';
 import config from '../config';
 import { logger } from '../libs/logger';
@@ -8,6 +8,7 @@ import { ISitemapURL } from './ISitemapURL';
 export class SitemapMaker {
   private static lastmod: Date = new Date();
 
+  private static tempDir: string = path.join(__dirname, '../../sitemapTemp');
   private static dir: string = path.join(__dirname, '../../sitemap');
 
   // массив имён файлов sitemap, если не пустой, то файл индекса ещё не создан
@@ -17,8 +18,8 @@ export class SitemapMaker {
   private static countWriteURL = 0;
 
   public static async run() {
-    SitemapMaker.cleanDir();
-    SitemapMaker.createDir();
+    SitemapMaker.cleanDir(SitemapMaker.tempDir);
+    SitemapMaker.createDir(SitemapMaker.tempDir);
     SitemapMaker.lastmod = new Date();
 
     // чтение статичного файла с адресами страниц
@@ -34,6 +35,20 @@ export class SitemapMaker {
 
     // формирование файла индекса
     await SitemapMaker.makeSitemapIndexFile();
+
+    // перенос файлов из временной папки
+    SitemapMaker.cleanDir(SitemapMaker.dir);
+    SitemapMaker.createDir(SitemapMaker.dir);
+    await SitemapMaker.copyFiles(SitemapMaker.tempDir, SitemapMaker.dir);
+    SitemapMaker.cleanDir(SitemapMaker.tempDir);
+  }
+
+  private static async copyFiles(from: string, to: string) {
+    const files = await readdir(from);
+
+    for(const f of files) {
+      await copyFile(path.join(from, f), path.join(to, f))
+    }
   }
 
   private static async readURL() {
@@ -87,18 +102,17 @@ export class SitemapMaker {
       return;
     }
 
-    const fname = `${SitemapMaker.dir}/sitemap.xml`;
+    const fname = `${SitemapMaker.tempDir}/sitemap.xml`;
     await writeFile(fname, `<?xml version="1.0" encoding="UTF-8"?>
       <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     `, { flag: 'w' });
 
-    SitemapMaker.sitemapFilesName.map(async (e) => {
+    SitemapMaker.sitemapFilesName.map(async e => {
       await writeFile(fname, `
         <loc>${SitemapMaker.makeSitemapsPath("/"+e.split('/').pop() || "")}</loc>
         <lastmod>${SitemapMaker.lastmod}</lastmod>
       `, { flag: 'a' });
     });
-
     await writeFile(fname, '</sitemapindex>', { flag: 'a' });
 
     SitemapMaker.sitemapFilesName.length = 0;
@@ -182,7 +196,7 @@ export class SitemapMaker {
   }
 
   private static getFileName() {
-    return `${SitemapMaker.dir}/sitemap${SitemapMaker.sitemapFilesName.length}.xml`;
+    return `${SitemapMaker.tempDir}/sitemap${SitemapMaker.sitemapFilesName.length}.xml`;
   }
 
   private static mapperSitemapURL(urls: string[]): ISitemapURL[] {
@@ -208,11 +222,11 @@ export class SitemapMaker {
     return new URL(`/sitemap${path}`, config.maker.base);
   }
 
-  private static cleanDir() {
-    try { rmSync(SitemapMaker.dir, { recursive: true }); } catch (error) { /* do nothing */ }
+  private static cleanDir(dir: string) {
+    try { rmSync(dir, { recursive: true }); } catch (error) { /* do nothing */ }
   }
 
-  private static createDir() {
-    try { readdirSync(SitemapMaker.dir); } catch (error) { mkdirSync(SitemapMaker.dir); }
+  private static createDir(dir: string) {
+    try { readdirSync(dir); } catch (error) { mkdirSync(dir); }
   }
 }
