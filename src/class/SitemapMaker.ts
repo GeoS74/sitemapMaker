@@ -31,8 +31,7 @@ export class SitemapMaker {
     await SitemapMaker.readStaticURL();
 
     // чтение api товаров
-    // await SitemapMaker.readURL();
-    logger.info('все страницы опрошены');
+    await SitemapMaker.readURL();
 
     if (SitemapMaker.countWriteURL > 0) {
       await SitemapMaker.closeFile();
@@ -46,6 +45,8 @@ export class SitemapMaker {
     SitemapMaker.createDir(SitemapMaker.dir);
     await SitemapMaker.copyFiles(SitemapMaker.tempDir, SitemapMaker.dir);
     SitemapMaker.cleanDir(SitemapMaker.tempDir);
+
+    logger.info('sitemaps created');
   }
 
   private static async copyFiles(from: string, to: string) {
@@ -62,8 +63,6 @@ export class SitemapMaker {
       const limit = 150;
 
       while (true) {
-        logger.info(`offset: ${offset} memory: ${process.memoryUsage().heapUsed}`);
-
         const arr = [];
         let i = 0;
         for (i = 0; i < 10; i += 1) {
@@ -156,7 +155,7 @@ export class SitemapMaker {
         buff.length = 0;
       }
 
-      if (SitemapMaker.countWriteURL > 30000) {
+      if (SitemapMaker.countWriteURL > +config.maker.maxURLsForSitemap) {
         await SitemapMaker.closeFile();
       }
     }

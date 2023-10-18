@@ -9,8 +9,17 @@ import { logger } from './libs/logger';
 import { _errorToJSON, _isNodeError } from './libs/errors';
 import { _isSitemapXML } from './libs/url.validator';
 import { SitemapMaker } from './class/SitemapMaker';
+import { delay } from './libs/delay';
 
-SitemapMaker.run();
+(async () => {
+  await delay(+config.maker.firstStartDelay);
+
+  (async function autoStarter() {
+    SitemapMaker.run();
+    await delay(+config.maker.restartDelay);
+    autoStarter();
+  }());
+})();
 
 const server: Server<typeof IncomingMessage, typeof ServerResponse> = createServer();
 

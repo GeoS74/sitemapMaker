@@ -1,0 +1,13 @@
+/dist
+/log
+/node_modules
+/sitemap
+/sitemapTemp
+Dockerfile
+.dockerignore
+.git
+.gitignore
+Makefile
+.eslintrc.js
+jest.config.js
+nodemon.json
