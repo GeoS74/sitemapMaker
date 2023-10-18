@@ -1,5 +1,9 @@
-import { readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
-import { readdirSync, mkdirSync, rmSync, createReadStream, createWriteStream } from 'node:fs';
+import {
+  readFile, writeFile, readdir, copyFile,
+} from 'node:fs/promises';
+import {
+  readdirSync, mkdirSync, rmSync,
+} from 'node:fs';
 import path from 'path';
 import config from '../config';
 import { logger } from '../libs/logger';
@@ -9,6 +13,7 @@ export class SitemapMaker {
   private static lastmod: Date = new Date();
 
   private static tempDir: string = path.join(__dirname, '../../sitemapTemp');
+
   private static dir: string = path.join(__dirname, '../../sitemap');
 
   // массив имён файлов sitemap, если не пустой, то файл индекса ещё не создан
@@ -46,8 +51,8 @@ export class SitemapMaker {
   private static async copyFiles(from: string, to: string) {
     const files = await readdir(from);
 
-    for(const f of files) {
-      await copyFile(path.join(from, f), path.join(to, f))
+    for (const f of files) {
+      await copyFile(path.join(from, f), path.join(to, f));
     }
   }
 
@@ -107,10 +112,12 @@ export class SitemapMaker {
       <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     `, { flag: 'w' });
 
-    SitemapMaker.sitemapFilesName.map(async e => {
+    SitemapMaker.sitemapFilesName.map(async (e) => {
       await writeFile(fname, `
-        <loc>${SitemapMaker.makeSitemapsPath("/"+e.split('/').pop() || "")}</loc>
-        <lastmod>${SitemapMaker.lastmod}</lastmod>
+      <sitemap>
+        <loc>${SitemapMaker.makeSitemapsPath(`/${e.split('/').pop()}` || '')}</loc>
+        <lastmod>${SitemapMaker.lastmod.toISOString()}</lastmod>
+      </sitemap>
       `, { flag: 'a' });
     });
     await writeFile(fname, '</sitemapindex>', { flag: 'a' });

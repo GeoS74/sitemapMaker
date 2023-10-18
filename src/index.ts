@@ -1,6 +1,8 @@
 import {
   createServer, Server, IncomingMessage, ServerResponse,
 } from 'http';
+import { readFile } from 'fs';
+import path from 'path';
 
 import config from './config';
 import { logger } from './libs/logger';
@@ -16,24 +18,26 @@ server.on('request', (req: IncomingMessage, res: ServerResponse<IncomingMessage>
   try {
     if (req.method === 'GET') {
       if (_isSitemapXML(req.url)) {
-        res.setHeader('content-type', 'application/xml; charset=utf-8');
-        res.statusCode = 200;
-        res.end('');
+        readFile(path.join(__dirname, '..', req.url?.toString() || ''), (error, data) => {
+          if (error) {
+            res.setHeader('content-type', 'application/json; charset=utf-8');
+            res.statusCode = 404;
+            res.end(_errorToJSON('not found'));
+            return;
+          }
+          res.setHeader('content-type', 'application/xml; charset=utf-8');
+          res.statusCode = 200;
+          res.end(data.toString());
+        });
         return;
       }
     }
 
-    throw new Error('not found');
+    res.setHeader('content-type', 'application/json; charset=utf-8');
+    res.statusCode = 404;
+    res.end(_errorToJSON('not found'));
   } catch (error) {
-    res.setHeader('content-type', 'application/json');
-
-    if (_isNodeError(error) && error.code === 'ENOENT') {
-      res.statusCode = 404;
-      res.end(_errorToJSON('not found'));
-      return;
-    }
-
-    if (error instanceof Error) {
+    if (_isNodeError(error)) {
       logger.error(error.message);
       res.statusCode = 500;
       res.end(_errorToJSON('internal server error'));
