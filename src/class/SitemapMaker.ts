@@ -7,12 +7,13 @@ import { ISitemapURL } from './ISitemapURL';
 
 export class SitemapMaker {
   private static lastmod: Date = new Date();
-
   private static dir: string = path.join(__dirname, '../../sitemap');
 
-  private static sitemapURL: ISitemapURL[] = [];
-
+  // массив имён файлов sitemap, если не пустой, то файл индекса ещё не создан 
   private static sitemapFilesName: string[] = [];
+
+  // счётчик записанных урл-ов, если больше 0, то какой-то файл пишется
+  private static countWriteURL = 0;
 
   public static async run() {
     SitemapMaker.cleanDir();
@@ -28,16 +29,7 @@ export class SitemapMaker {
 
     if(SitemapMaker.countWriteURL > 0) {
       await SitemapMaker.closeFile();
-      SitemapMaker.countWriteURL = 0;
     }
-
-    // запись оставшихся адресов
-    // if (SitemapMaker.sitemapURL.length) {
-    //   // вызов асинхронного метода makeSitemapFile без await
-    //   SitemapMaker.makeSitemapFile([...SitemapMaker.sitemapURL]);
-    //   SitemapMaker.sitemapURL.length = 0;
-    //   SitemapMaker.sitemapFilesName.length = 0;
-    // }
 
     // формирование файла индекса
     // ...
@@ -72,13 +64,6 @@ export class SitemapMaker {
     } catch (error) { /* do nothing */ }
   }
 
-
-
-
-
-
-  private static countWriteURL = 0;
-
   private static async openFile() {
     const fname = SitemapMaker.getFileName();
     await writeFile(fname, `<?xml version="1.0" encoding="UTF-8"?>
@@ -90,6 +75,7 @@ export class SitemapMaker {
     const fname = SitemapMaker.getFileName();
     await writeFile(fname, `</urlset>`, { flag: 'a' });
     SitemapMaker.sitemapFilesName.push(fname);
+    SitemapMaker.countWriteURL = 0;
   }
 
   private static async writeURL(urls: ISitemapURL[]) {
@@ -111,7 +97,6 @@ export class SitemapMaker {
 
       if(SitemapMaker.countWriteURL > 30000) {
         await SitemapMaker.closeFile();
-        SitemapMaker.countWriteURL = 0;
       }
     }
 
@@ -152,7 +137,7 @@ export class SitemapMaker {
       })
       .then((arr) => arr.map((e) => SitemapMaker.makeURL(`/${e.alias}`).toString()))
       .catch((error) => {
-        logger.error(error);
+        logger.error(`${config.maker.apiURL}?offset=${offset}&limit=${limit}`);
         if (error instanceof Error) {
           logger.error(error.message);
         }
@@ -177,44 +162,12 @@ export class SitemapMaker {
       });
   }
 
-  private static async makeSitemapFile(sitemapURLSs: ISitemapURL[]) {
-    const fname = SitemapMaker.getFileName();
-    SitemapMaker.sitemapFilesName.push(fname);
-
-    await writeFile(fname, '<?xml version="1.0" encoding="UTF-8"?>\n', { flag: 'w' });
-    await writeFile(fname, '<urlset xmlns="http://www.sitemapURL.org/schemas/sitemap/0.9">', { flag: 'a' });
-
-    sitemapURLSs.map(async (u) => {
-      await writeFile(fname, `
-      <url>
-        <loc>${u.loc.toString()}</loc>
-        <lastmod>${u.lastmod.toISOString()}</lastmod>
-        <changefreq>${u.changefreq}</changefreq>
-        <priority>${u.priority}</priority>
-      </url>
-      `, { flag: 'a' });
-    });
-
-    await writeFile(fname, '</urlset>', { flag: 'a' });
-  }
-
   private makeSitemapIndexFile() {
 
   }
 
   private static getFileName() {
     return `${SitemapMaker.dir}/sitemap${SitemapMaker.sitemapFilesName.length}.xml`;
-  }
-
-  private static async addURL(urls: ISitemapURL[]) {
-    SitemapMaker.sitemapURL = SitemapMaker.sitemapURL.concat(urls);
-
-    if (SitemapMaker.sitemapURL.length > config.maker.maxURLsForSitemap) {
-      // вызов асинхронного метода makeSitemapFile() без await
-      // метод получает срез массива адресов и начинает их писать в файл не блокируя дальнейшее чтение
-      SitemapMaker.makeSitemapFile(SitemapMaker.sitemapURL.slice(0, config.maker.maxURLsForSitemap));
-      SitemapMaker.sitemapURL = SitemapMaker.sitemapURL.slice(config.maker.maxURLsForSitemap);
-    }
   }
 
   private static mapperSitemapURL(urls: string[]): ISitemapURL[] {
