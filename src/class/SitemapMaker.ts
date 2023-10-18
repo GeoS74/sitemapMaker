@@ -25,7 +25,7 @@ export class SitemapMaker {
     await SitemapMaker.readStaticURL();
 
     // чтение api товаров
-    await SitemapMaker.readURL();
+    // await SitemapMaker.readURL();
     logger.info('все страницы опрошены');
 
     if (SitemapMaker.countWriteURL > 0) {
@@ -87,15 +87,15 @@ export class SitemapMaker {
       return;
     }
 
-    const fname = 'sitemap.xml';
+    const fname = `${SitemapMaker.dir}/sitemap.xml`;
     await writeFile(fname, `<?xml version="1.0" encoding="UTF-8"?>
       <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     `, { flag: 'w' });
 
     SitemapMaker.sitemapFilesName.map(async (e) => {
       await writeFile(fname, `
-      <loc>${e}</loc>
-      <lastmod>${SitemapMaker.lastmod}</lastmod>
+        <loc>${SitemapMaker.makeSitemapsPath("/"+e.split('/').pop() || "")}</loc>
+        <lastmod>${SitemapMaker.lastmod}</lastmod>
       `, { flag: 'a' });
     });
 
@@ -199,6 +199,13 @@ export class SitemapMaker {
       path = '';
     }
     return new URL(`${config.maker.pathPrefix}${path}`, config.maker.base);
+  }
+
+  private static makeSitemapsPath(path: string): URL {
+    if (path.length === 1) {
+      path = '';
+    }
+    return new URL(`/sitemap${path}`, config.maker.base);
   }
 
   private static cleanDir() {
