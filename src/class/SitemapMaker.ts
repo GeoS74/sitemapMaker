@@ -20,16 +20,13 @@ export class SitemapMaker {
     SitemapMaker.lastmod = new Date();
 
     // чтение статичного файла с адресами страниц
-    // await SitemapMaker.readStaticURL()
-    //   .then(SitemapMaker.mapperURL)
-    //   .then(SitemapMaker.addURL);
+    await SitemapMaker.readStaticURL();
 
     // чтение api товаров
     await SitemapMaker.readURL();
     logger.info('все страницы опрошены');
 
     if(SitemapMaker.countWriteURL > 0) {
-      console.log(`закрываю the end`)
       await SitemapMaker.closeFile();
       SitemapMaker.countWriteURL = 0;
     }
@@ -48,15 +45,15 @@ export class SitemapMaker {
 
   private static async readURL() {
     try {
-      let offset = 0;
-      const limit = 10;
+      let offset = 104000;
+      const limit = 150;
 
       while (true) {
         logger.info(`offset: ${offset} memory: ${process.memoryUsage().heapUsed}`);
         
         const arr = [];
         let i = 0;
-        for (i = 0; i < 1; i += 1) {
+        for (i = 0; i < 10; i += 1) {
           arr.push(SitemapMaker.getRequestToAPI(limit * i + offset, limit));
         }
         offset += limit * i;
@@ -69,12 +66,8 @@ export class SitemapMaker {
             }
             return res;
           })
-          .then(SitemapMaker.mapperURL)
+          .then(SitemapMaker.mapperSitemapURL)
           .then(SitemapMaker.writeURL)
-          // .then(res => console.log(res.length))
-          .then(() => {
-            throw new Error()
-          })
       }
     } catch (error) { /* do nothing */ }
   }
@@ -100,49 +93,39 @@ export class SitemapMaker {
   }
 
   private static async writeURL(urls: ISitemapURL[]) {
-    const fname = SitemapMaker.getFileName();
     let buff: string[] = [];
 
     for(let u of urls) {
       if(SitemapMaker.countWriteURL === 0) {
-        console.log(`открытого файла нет, создаю  ${SitemapMaker.getFileName()}`)
         await SitemapMaker.openFile();
       }
 
       SitemapMaker.countWriteURL += 1;
 
-      buff.push(SitemapMaker.urlToString(u));
+      buff.push(SitemapMaker.sitemapURLToString(u));
 
-      if(buff.length > 9) {
-        console.log(`пишу  ${buff.length} строк в   ${SitemapMaker.getFileName()}`)
+      if(buff.length > 500) {
         await writeFile(SitemapMaker.getFileName(), buff.join(''), { flag: 'a' })
         buff.length = 0;
       }
 
-      if(SitemapMaker.countWriteURL > 9) {
-        console.log(`закрываю ${SitemapMaker.getFileName()}`)
+      if(SitemapMaker.countWriteURL > 30000) {
         await SitemapMaker.closeFile();
         SitemapMaker.countWriteURL = 0;
       }
     }
 
-     
-
     if(buff.length) {
-      console.log(`есть не записанные строки`)
-
       if(SitemapMaker.countWriteURL === 0) {
-        console.log(`создаю  ${SitemapMaker.getFileName()}`)
         await SitemapMaker.openFile();
       }
 
-      console.log(`пишу  ${buff.length} строк в   ${SitemapMaker.getFileName()}`)
       await writeFile(SitemapMaker.getFileName(), buff.join(''), { flag: 'a' });
       buff.length = 0;
     }
   }
 
-  private static urlToString(url: ISitemapURL) {
+  private static sitemapURLToString(url: ISitemapURL) {
     return `
     <url>
       <loc>${url.loc.toString()}</loc>
@@ -167,8 +150,9 @@ export class SitemapMaker {
         }
         throw new Error();
       })
-      .then((arr) => arr.map((e) => SitemapMaker.makeURL(`${config.maker.psevdoPath}/${e.alias}`).toString()))
+      .then((arr) => arr.map((e) => SitemapMaker.makeURL(`/${e.alias}`).toString()))
       .catch((error) => {
+        logger.error(error);
         if (error instanceof Error) {
           logger.error(error.message);
         }
@@ -176,13 +160,15 @@ export class SitemapMaker {
       });
   }
 
-  private static async readStaticURL(): Promise<string[] | never[]> {
+  private static async readStaticURL(): Promise<void | never[]> {
     return readFile(path.join(__dirname, config.maker.staticURL))
       // в Set добавляются URL в строковом виде для исключения дубликатов
       // если в файле со статичными адресами страниц есть пустые строки
       // метод makeURL() вернёт базовый адрес сайта, так появляются дубликаты
       .then((res) => new Set(res.toString().split('\n').map((line) => SitemapMaker.makeURL(line).toString())))
       .then((res) => Array.from(res))
+      .then(SitemapMaker.mapperSitemapURL)
+      .then(SitemapMaker.writeURL)
       .catch((error) => {
         if (error instanceof Error) {
           logger.error(error.message);
@@ -231,7 +217,7 @@ export class SitemapMaker {
     }
   }
 
-  private static mapperURL(urls: string[]): ISitemapURL[] {
+  private static mapperSitemapURL(urls: string[]): ISitemapURL[] {
     return urls.map((url) => ({
       loc: new URL(url),
       lastmod: SitemapMaker.lastmod,
@@ -241,7 +227,10 @@ export class SitemapMaker {
   }
 
   private static makeURL(path: string): URL {
-    return new URL(path, config.maker.base);
+    if(path.length === 1) {
+      path = '';
+    }
+    return new URL(`${config.maker.pathPrefix}${path}`, config.maker.base);
   }
 
   private static cleanDir() {

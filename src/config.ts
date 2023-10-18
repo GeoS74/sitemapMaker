@@ -10,7 +10,7 @@ export default {
     base: 'https://sgn74.ru',
     apiURL: process.env.API_PAGES || 'https://sgn74.ru/api/bridge/card',
     staticURL: process.env.STATIC_URL_LIST || '../../static.url',
-    psevdoPath: '/products',
+    pathPrefix: process.env.SITEMAP_PATH_PREFIX || '/html',
     maxURLsForSitemap: 10000,
     syncDelay: process.env.SYNC_MSTIME || 1000 * 60 * 60,
   },
