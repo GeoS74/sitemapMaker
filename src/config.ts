@@ -9,11 +9,10 @@ export default {
   maker: {
     base: process.env.BASE_URL || 'https://sgn74.ru',
     apiURL: process.env.API_PAGES || 'https://sgn74.ru/api/bridge/card',
-    staticURL: process.env.STATIC_URL_LIST || '../../static.url',
-    pathPrefix: process.env.SITEMAP_PATH_PREFIX || '/html',
     maxURLsForSitemap: process.env.MAX_URLS_FOR_SITEMAP || 30000,
     firstStartDelay: process.env.START_MSTIME || 1000 * 60,
     restartDelay: process.env.RESTART_MSTIME || 1000 * 60 * 60 * 24 * 7,
+    staticURL: '../../static.url',
   },
   log: {
     file: 'app.log',

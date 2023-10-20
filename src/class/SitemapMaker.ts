@@ -62,7 +62,7 @@ export class SitemapMaker {
       let offset = 0;
       const limit = 150;
 
-      while (true) {
+      for (;;) {
         const arr = [];
         let i = 0;
         for (i = 0; i < 10; i += 1) {
@@ -218,7 +218,7 @@ export class SitemapMaker {
     if (path.length === 1) {
       path = '';
     }
-    return new URL(`${config.maker.pathPrefix}${path}`, config.maker.base);
+    return new URL(`${path}`, config.maker.base);
   }
 
   private static makeSitemapsPath(path: string): URL {

@@ -49,6 +49,7 @@ server.on('request', (req: IncomingMessage, res: ServerResponse<IncomingMessage>
   } catch (error) {
     if (_isNodeError(error)) {
       logger.error(error.message);
+      res.setHeader('content-type', 'application/json; charset=utf-8');
       res.statusCode = 500;
       res.end(_errorToJSON('internal server error'));
     }
