@@ -80,7 +80,7 @@ export class SitemapMaker {
           })
           .then(SitemapMaker.mapperSitemapURL)
           .then(SitemapMaker.writeURL)
-          .catch(error => {
+          .catch((error) => {
             if (error instanceof Error) {
               logger.error(error.message);
             }
