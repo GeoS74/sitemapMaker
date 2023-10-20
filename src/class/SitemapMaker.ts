@@ -60,7 +60,7 @@ export class SitemapMaker {
   private static async readURL() {
     try {
       let offset = 0;
-      const limit = 150;
+      const limit = +config.maker.limitURL;
 
       for (;;) {
         const arr = [];
@@ -79,7 +79,13 @@ export class SitemapMaker {
             return res;
           })
           .then(SitemapMaker.mapperSitemapURL)
-          .then(SitemapMaker.writeURL);
+          .then(SitemapMaker.writeURL)
+          .catch(error => {
+            if (error instanceof Error) {
+              logger.error(error.message);
+            }
+            throw new Error();
+          });
       }
     } catch (error) { /* do nothing */ }
   }
