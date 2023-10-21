@@ -8,6 +8,7 @@ import path from 'path';
 import config from '../config';
 import { logger } from '../libs/logger';
 import { ISitemapURL } from './ISitemapURL';
+import { delay } from '../libs/delay';
 
 export class SitemapMaker {
   private static lastmod: Date = new Date();
@@ -63,6 +64,8 @@ export class SitemapMaker {
       const limit = +config.maker.limitURL;
 
       for (;;) {
+        await delay(+config.maker.pause);
+
         const arr = [];
         let i = 0;
         for (i = 0; i < +config.maker.limitFetch; i += 1) {
