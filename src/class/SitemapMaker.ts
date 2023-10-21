@@ -65,7 +65,7 @@ export class SitemapMaker {
       for (;;) {
         const arr = [];
         let i = 0;
-        for (i = 0; i < 10; i += 1) {
+        for (i = 0; i < +config.maker.limitFetch; i += 1) {
           arr.push(SitemapMaker.getRequestToAPI(limit * i + offset, limit));
         }
         offset += limit * i;
@@ -74,7 +74,7 @@ export class SitemapMaker {
           .then((res) => res.flat())
           .then((res) => {
             if (!res.length) {
-              throw new Error();
+              throw new Error('res.length == 0');
             }
             return res;
           })
@@ -198,7 +198,7 @@ export class SitemapMaker {
         }
         return [];
       })
-      .then((arr) => arr.map((e) => SitemapMaker.makeURL(`/${e.alias}`).toString()))
+      .then((arr) => arr.map((e) => SitemapMaker.makeURL(`${config.maker.apiPrefix}/${e.alias}`).toString()))
       .catch((error) => {
         if (error instanceof Error) {
           logger.error(error.message);

@@ -9,7 +9,9 @@ export default {
   maker: {
     base: process.env.BASE_URL || 'https://sgn74.ru',
     apiURL: process.env.API_PAGES || 'https://sgn74.ru/api/bridge/card',
+    apiPrefix: process.env.API_PREFIX || '/catalog/product',
     limitURL: process.env.API_PAGES_LIMIT || 150,
+    limitFetch: process.env.API_PAGES_FETCH_LIMIT || 5,
     maxURLsForSitemap: process.env.MAX_URLS_FOR_SITEMAP || 30000,
     firstStartDelay: process.env.START_MSTIME || 1000 * 60,
     restartDelay: process.env.RESTART_MSTIME || 1000 * 60 * 60 * 24 * 7,
